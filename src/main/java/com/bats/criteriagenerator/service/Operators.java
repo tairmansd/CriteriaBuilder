@@ -3,11 +3,12 @@ package com.bats.criteriagenerator.service;
 public enum Operators
 {
 	EQ (":"),
+	NE ("!"),
 	LE ("<"),
 	LTE ("<="),
 	GE (">"),
 	GTE (">="),
-	EX ("%");
+	EX ("*");
 	
 	private String value;
 
@@ -17,12 +18,12 @@ public enum Operators
 	}
 	
 	public static String[] getAll() {
-		String[] result = {EQ.value, LE.value, LTE.value, GE.value, GTE.value, EX.value};
+		String[] result = {EQ.value, LE.value, LTE.value, GE.value, GTE.value, EX.value, NE.value};
 		return result;
 	}
 	
 	public static Operators getEnum(String value) {
-		Operators[] enums = {EQ, LE, LTE, GE, GTE, EX};
+		Operators[] enums = {EQ, LE, LTE, GE, GTE, EX, NE};
 		for (Operators a : enums)	
 		{
 			if(a.value.equals(value)) {
@@ -34,7 +35,7 @@ public enum Operators
 	
 	public static String splitRegex() {
 		//except for LIKE %(.*?)% [\)]|\(([^\(]+)$
-		return ":|<=|<|>=|>";
+		return ":|<=|<|>=|>|\\*|!";
 	}
  }
  

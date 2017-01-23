@@ -49,9 +49,11 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 			CriteriaQuery<T> cq = criteriaBuilder.createQuery(clazz);
 			Root<T> root = cq.from(clazz);			
 			
-			Predicate predicate = populatePredicates(root, query);
+			if(query!=null) {
+				Predicate predicate = populatePredicates(root, query);
+				cq.where(predicate);				
+			}
 			
-			cq.where(predicate);
             cq.select(root);
             TypedQuery<T> q = entitymanager.createQuery(cq);
             resultsList = q.getResultList();
@@ -75,6 +77,7 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 	{
 		if(StringUtils.countOccurrencesOf(query, Conjunctions.SP.toString()) == StringUtils.countOccurrencesOf(query, Conjunctions.EP.toString())) {
 			LinkedList<String> postfix = createPostfixExpression(query);
+			boolean hasSingleSearchField = postfix.size() == 1;  
 			
 			Map<String, Predicate> predicateMap = new LinkedHashMap<>();
 			
@@ -85,9 +88,9 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 					
 					String key = postfix.get(i-1) + attr + postfix.get(i-2);
 					
-					Predicate rightPredicate = (predicateMap.containsKey(key))? predicateMap.get(key) : buildPredicate(root, new SearchField(postfix.get(i-1))); 
+					Predicate rightPredicate = (predicateMap.containsKey(postfix.get(i-1)))? predicateMap.get(postfix.get(i-1)) : buildPredicate(root, new SearchField(postfix.get(i-1))); 
 					
-					Predicate leftPredicate = (predicateMap.containsKey(key))? predicateMap.get(key) : buildPredicate(root, new SearchField(postfix.get(i-2)));
+					Predicate leftPredicate = (predicateMap.containsKey(postfix.get(i-2)))? predicateMap.get(postfix.get(i-2)) : buildPredicate(root, new SearchField(postfix.get(i-2)));
 					
 					postfix.set(i-2, key);
 					postfix.remove(i);
@@ -103,6 +106,11 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 					Predicate combinedPredicate = buildPredicateWithOperator(root, Conjunctions.getEnum(attr), combinedPredicates);
 					predicateMap.put(key, combinedPredicate);
 				}
+			}
+			
+			if(hasSingleSearchField) {
+				SearchField field = new SearchField(postfix.get(0));
+				predicateMap.put(postfix.get(0), buildPredicate(root, field));
 			}
 			
 			return (Predicate) predicateMap.values().toArray()[predicateMap.size()-1];
@@ -125,7 +133,7 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 	@SuppressWarnings ({ "unchecked", "rawtypes" })
 	protected Predicate buildPredicate(Path<T> root, SearchField field)
 	{
-		Path<T> tt = root.get(field.getField());
+		Path<T> tt = (!field.getField().contains(".")) ? root.get(field.getField()) : fetchNestedPath(root, field.getField());
 		CriteriaBuilder criteriaBuilder = this.entitymanager.getCriteriaBuilder();
 		
 		Class<?> javaType = tt.getJavaType();
@@ -141,25 +149,36 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 			case GE:
 				return criteriaBuilder.greaterThan((Expression) tt, (Comparable) valueObject);
 			case GTE:
-				return criteriaBuilder.greaterThanOrEqualTo((Expression) tt,
-								(Comparable) valueObject);
+				return criteriaBuilder.greaterThanOrEqualTo((Expression) tt, (Comparable) valueObject);
 			case LE:
 				return criteriaBuilder.lessThan((Expression) tt, (Comparable) valueObject);
 			case LTE:
 				return criteriaBuilder.lessThanOrEqualTo((Expression) tt, (Comparable) valueObject);
-			case EQ:
-				return criteriaBuilder.notEqual(tt, valueObject);
+			case NE: 
+                return criteriaBuilder.notEqual(tt, valueObject); 
 			case EX:
-				return criteriaBuilder.like((Expression) tt, field.getValue().replace('*', '%'));
+				return criteriaBuilder.like((Expression) tt, "%"+field.getValue()+"%");
 			default:
 			{
-				Path<T> attribute = tt.get(field.getField());
-				valueObject = convertStringValueToObject(field.getValue(), attribute.getJavaType());
-				return criteriaBuilder.equal(attribute, valueObject);
+				//EQ
+				return criteriaBuilder.equal(tt, valueObject);
 			}
 		}
 	}
 	
+	private Path<T> fetchNestedPath(Path<T> root, String fieldname) {
+		String[] fields = fieldname.split("\\.");
+		Path<T> result = null;
+		for (String field : fields) {
+			if(result == null) {
+				result = root.get(field);
+			} else {
+				result = result.get(field);
+			}
+		}
+		return result;
+	}
+
 	@SuppressWarnings ({ "rawtypes", "unchecked" })
 	private Enum safeEnumValueOf(Class enumType, String name) {
         Enum enumValue = null;
@@ -182,6 +201,7 @@ public class CriteriaServiceImpl<T> implements CriteriaService
                 convertedValue = formatter.parse(value);
             } catch (ParseException ex) {
                 convertedValue = null;
+                convertedValue = new Date(Long.parseLong(value));
             }
         } else if ((clazz.isPrimitive() && !clazz.equals(boolean.class))
                     || (Number.class.isAssignableFrom(clazz))){
@@ -205,6 +225,7 @@ public class CriteriaServiceImpl<T> implements CriteriaService
             return true;
         } else {
             switch (operator) {
+	            case NE:
                 case EQ:
                     return true;
                 case GE:
@@ -255,9 +276,9 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 			}
 		}
 		
-		do {
+		while (!operatorStack.empty()) {
 			postFixQueue.add(operatorStack.pop());
-		} while (!operatorStack.empty());
+		};
 		
 		System.out.println(postFixQueue);
 		return postFixQueue;
