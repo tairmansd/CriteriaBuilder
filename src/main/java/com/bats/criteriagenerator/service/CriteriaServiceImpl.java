@@ -2,7 +2,6 @@ package com.bats.criteriagenerator.service;
 
 import java.text.NumberFormat;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -21,6 +20,7 @@ import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
+import org.apache.commons.lang.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -28,8 +28,8 @@ import org.springframework.util.StringUtils;
 @Service
 public class CriteriaServiceImpl<T> implements CriteriaService
 {
-	private static final String pattern = "yyyy-MM-dd'T'HH:mm:ssZ";
-    private static SimpleDateFormat formatter = new SimpleDateFormat(pattern);
+	@Resource(name="dateFormats")
+	private String[] pattern;
 	
 	@Resource(name="entityList")
 	private Map<String, Class<T>> entityList;
@@ -44,6 +44,8 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 		if(validateQuery(query, queryHash)) {
 			
 			Class<T> clazz = entityList.get(entityName);
+			
+			if(clazz == null) throw new RuntimeException("ENTITY.NOT.FOUND");
 			
 			CriteriaBuilder criteriaBuilder = entitymanager.getCriteriaBuilder();
 			CriteriaQuery<T> cq = criteriaBuilder.createQuery(clazz);
@@ -198,7 +200,7 @@ public class CriteriaServiceImpl<T> implements CriteriaService
             convertedValue = safeEnumValueOf(clazz, value);
         } else if (Date.class.isAssignableFrom(clazz)) {
             try {
-                convertedValue = formatter.parse(value);
+                convertedValue = DateUtils.parseDateStrictly(value, pattern);
             } catch (ParseException ex) {
                 convertedValue = null;
                 convertedValue = new Date(Long.parseLong(value));

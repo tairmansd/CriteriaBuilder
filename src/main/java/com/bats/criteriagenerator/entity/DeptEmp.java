@@ -27,12 +27,12 @@ public class DeptEmp implements Serializable {
 	private Date toDate;
 
 	//bi-directional many-to-one association to Employee
-	@ManyToOne
+	@ManyToOne(fetch=FetchType.EAGER)
 	@JoinColumn(name="emp_no", insertable=false, updatable=false)
 	private Employee employee;
 
 	//bi-directional many-to-one association to Department
-	@ManyToOne
+	@ManyToOne(fetch=FetchType.EAGER)
 	@JoinColumn(name="dept_no", insertable=false, updatable=false)
 	private Department department;
 

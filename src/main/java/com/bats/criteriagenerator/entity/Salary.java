@@ -25,7 +25,7 @@ public class Salary implements Serializable {
 	private Date toDate;
 
 	//bi-directional many-to-one association to Employee
-	@ManyToOne
+	@ManyToOne(fetch=FetchType.EAGER)
 	@JoinColumn(name="emp_no", insertable=false, updatable=false)
 	private Employee employee;
 

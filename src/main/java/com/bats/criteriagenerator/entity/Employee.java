@@ -1,9 +1,15 @@
 package com.bats.criteriagenerator.entity;
 
 import java.io.Serializable;
-import javax.persistence.*;
 import java.util.Date;
-import java.util.List;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.NamedQuery;
+import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
 
 
 /**
@@ -17,7 +23,6 @@ public class Employee implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Id
-	@GeneratedValue(strategy=GenerationType.AUTO)
 	@Column(name="emp_no")
 	private int empNo;
 
@@ -36,14 +41,6 @@ public class Employee implements Serializable {
 
 	@Column(name="last_name")
 	private String lastName;
-
-	//bi-directional many-to-one association to DeptManager
-	@OneToMany(mappedBy="employee")
-	private List<DeptManager> deptManagers;
-
-	//bi-directional many-to-one association to Title
-	@OneToMany(mappedBy="employee")
-	private List<Title> titles;
 
 	public Employee() {
 	}
@@ -95,49 +92,4 @@ public class Employee implements Serializable {
 	public void setLastName(String lastName) {
 		this.lastName = lastName;
 	}
-
-	public List<DeptManager> getDeptManagers() {
-		return this.deptManagers;
-	}
-
-	public void setDeptManagers(List<DeptManager> deptManagers) {
-		this.deptManagers = deptManagers;
-	}
-
-	public DeptManager addDeptManager(DeptManager deptManager) {
-		getDeptManagers().add(deptManager);
-		deptManager.setEmployee(this);
-
-		return deptManager;
-	}
-
-	public DeptManager removeDeptManager(DeptManager deptManager) {
-		getDeptManagers().remove(deptManager);
-		deptManager.setEmployee(null);
-
-		return deptManager;
-	}
-
-	public List<Title> getTitles() {
-		return this.titles;
-	}
-
-	public void setTitles(List<Title> titles) {
-		this.titles = titles;
-	}
-
-	public Title addTitle(Title title) {
-		getTitles().add(title);
-		title.setEmployee(this);
-
-		return title;
-	}
-
-	public Title removeTitle(Title title) {
-		getTitles().remove(title);
-		title.setEmployee(null);
-
-		return title;
-	}
-
 }

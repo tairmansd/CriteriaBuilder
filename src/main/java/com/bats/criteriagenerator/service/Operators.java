@@ -35,7 +35,7 @@ public enum Operators
 	
 	public static String splitRegex() {
 		//except for LIKE %(.*?)% [\)]|\(([^\(]+)$
-		return ":|<=|<|>=|>|\\*|!";
+		return "[:|<=|<|>=|>|\\*|!]+";
 	}
  }
  
