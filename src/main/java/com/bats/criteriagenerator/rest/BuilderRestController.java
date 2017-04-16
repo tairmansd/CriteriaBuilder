@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bats.criteriagenerator.service.CriteriaService;
@@ -17,17 +18,9 @@ public class BuilderRestController
 	@Autowired
 	private CriteriaService service;
 	
-	/*@RequestMapping(value = "/search/{entityName}", method = RequestMethod.GET)
-	public List<?> getMetaData(@PathVariable String entityName, @RequestBody String queryHash, @RequestParam("query") String query) {
-		return service.search(entityName, queryHash, query);
-	}*/
-	
 	@RequestMapping(value = "/search/{entityName}", method = RequestMethod.GET)
-	public List<?> getMetaData(@PathVariable String entityName) {
-		
-		String queryHash = null;
-		String query = "empNo:10002ANDfirstName:INDERJEET";
-		return service.search(entityName, queryHash, query );
+	public List<?> getMetaData(@PathVariable String entityName, @RequestParam(value="query", required=false) String query) {
+		return service.search(entityName, null, query);
 	}
 }
 
