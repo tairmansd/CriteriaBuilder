@@ -38,7 +38,7 @@
 
             if(!hasRedundantExpression) {
             	var resultantArr = this._expressionQueue.join("").split(new RegExp("AND|OR")).filter(function(obj) {
-                    var expression_regex = new RegExp("[(]+?[a-zA-z0-9]+[:!<>][=]?[*]?[a-zA-z0-9-']+[*]?[)]+", "g");
+                    var expression_regex = new RegExp("[(]+?[a-zA-z0-9.]+[:!<>][=]?[*]?[a-zA-z0-9-']+[*]?[)]+", "g");
                     return !expression_regex.test(obj);
                 });
             	
