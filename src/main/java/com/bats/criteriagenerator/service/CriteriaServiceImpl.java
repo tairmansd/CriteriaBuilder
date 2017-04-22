@@ -1,5 +1,8 @@
 package com.bats.criteriagenerator.service;
 
+import java.beans.PropertyDescriptor;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -20,6 +23,7 @@ import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
+import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.lang.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,17 +42,21 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 	private EntityManager entitymanager;
 		
 	@Override
-	public List<?> search(String entityName, String queryHash, String query)
+	public List<?> search(String entityName, String query, int limit, int pageNumber)
 	{
 		List<T> resultsList = new ArrayList<>();
-		if(validateQuery(query, queryHash)) {
-			
-			Class<T> clazz = entityList.get(entityName);
-			
-			if(clazz == null) throw new RuntimeException("ENTITY.NOT.FOUND");
+		
+		Class<T> clazz = entityList.get(entityName);
+		
+		if(clazz == null) throw new RuntimeException("ENTITY.NOT.FOUND");
+		
+		boolean isValid = query == null ? true : validateQuery(query, clazz);  
+		
+		if(isValid) {
 			
 			CriteriaBuilder criteriaBuilder = entitymanager.getCriteriaBuilder();
 			CriteriaQuery<T> cq = criteriaBuilder.createQuery(clazz);
+			
 			Root<T> root = cq.from(clazz);			
 			
 			if(query!=null) {
@@ -58,10 +66,12 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 			
             cq.select(root);
             TypedQuery<T> q = entitymanager.createQuery(cq);
+            q.setFirstResult((pageNumber-1) * limit);
+            q.setMaxResults(limit);
             resultsList = q.getResultList();
             System.out.println(resultsList.size());
 		} else {
-			throw new RuntimeException("QUERY.HASH.DOESNT.MAP");
+			throw new RuntimeException("Property defined in the query is not valid, doesn't belong to the entity type:"+entityName);
 		}
 		return resultsList;
 	}
@@ -88,11 +98,14 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 				String attr = postfix.get(i);
 				if(Conjunctions.isConjunction(attr)) {
 					
-					String key = postfix.get(i-1) + attr + postfix.get(i-2);
+					String rightOperand = postfix.get(i-1);
+					String leftOperand = postfix.get(i-2);
 					
-					Predicate rightPredicate = (predicateMap.containsKey(postfix.get(i-1)))? predicateMap.get(postfix.get(i-1)) : buildPredicate(root, new SearchField(postfix.get(i-1))); 
+					String key = rightOperand + attr + leftOperand;
 					
-					Predicate leftPredicate = (predicateMap.containsKey(postfix.get(i-2)))? predicateMap.get(postfix.get(i-2)) : buildPredicate(root, new SearchField(postfix.get(i-2)));
+					Predicate rightPredicate = (predicateMap.containsKey(rightOperand))? predicateMap.get(rightOperand) : buildPredicate(root, new SearchField(rightOperand)); 
+					
+					Predicate leftPredicate = (predicateMap.containsKey(leftOperand))? predicateMap.get(leftOperand) : buildPredicate(root, new SearchField(leftOperand));
 					
 					postfix.set(i-2, key);
 					postfix.remove(i);
@@ -295,9 +308,94 @@ public class CriteriaServiceImpl<T> implements CriteriaService
 		return result.toArray(new String[result.size()]);
 	}
 
-	private boolean validateQuery(String query, String queryHash) {
-		//TODO: write implementation of this method
-		return true;
+	private boolean validateQuery(String query, Class<T> clazz) {
+		LinkedList<String> postfixQueue = createPostfixExpression(query);
+		boolean result = true;
+		for (String expression : postfixQueue)
+		{
+			if(!Conjunctions.isConjunction(expression)) {
+				SearchField searchField = new SearchField(expression);
+				
+				System.out.println("validating query expression:"+expression);
+				
+				Object instance = createInstanceFromClass(clazz);
+				
+				instantiateNestedProperties(instance, searchField.getField());
+				
+				result = propertyExists(instance, searchField.getField());
+				
+				if(!result) break;
+			}
+ 		}
+		return result;
+	}
+	
+	private Object createInstanceFromClass(Class<T> clazz) {
+		Constructor<?> ctor = null;
+		Constructor<?>[] ctors = clazz.getDeclaredConstructors();
+		
+		for (int i = 0; i < ctors.length; i++) {
+		    ctor = ctors[i];
+		    if (ctor.getGenericParameterTypes().length == 0)
+			break;
+		}
+		
+		Object result = null;
+		try
+		{
+			ctor.setAccessible(true);
+			result = ctor.newInstance();
+		}
+		catch (SecurityException e)
+		{
+			e.printStackTrace();
+			throw new RuntimeException("Something went wrong while creating class instance for validation");
+		}
+		catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+						| InvocationTargetException e)
+		{
+			e.printStackTrace();
+			throw new RuntimeException("Something went wrong while creating class instance for validation");
+		}
+		return result;
+	}
+	
+	private void instantiateNestedProperties(Object obj, String fieldName) {
+	    try {
+	        String[] fieldNames = fieldName.split("\\.");
+	        if (fieldNames.length > 1) {
+	            StringBuffer nestedProperty = new StringBuffer();
+	            for (int i = 0; i < fieldNames.length - 1; i++) {
+	                String fn = fieldNames[i];
+	                if (i != 0) {
+	                    nestedProperty.append(".");
+	                }
+	                nestedProperty.append(fn);
+
+	                Object value = PropertyUtils.getProperty(obj, nestedProperty.toString());
+
+	                if (value == null) {
+	                    PropertyDescriptor propertyDescriptor = PropertyUtils.getPropertyDescriptor(obj, nestedProperty.toString());
+	                    Class<?> propertyType = propertyDescriptor.getPropertyType();
+	                    Object newInstance = propertyType.newInstance();
+	                    PropertyUtils.setProperty(obj, nestedProperty.toString(), newInstance);
+	                }
+	            }
+	        }
+	    } catch (IllegalAccessException e) {
+	        throw new RuntimeException(e);
+	    } catch (InvocationTargetException e) {
+	        throw new RuntimeException(e);
+	    } catch (NoSuchMethodException e) {
+	        throw new RuntimeException(e);
+	    } catch (InstantiationException e) {
+	        throw new RuntimeException(e);
+	    }
+	}
+	
+	static boolean propertyExists(Object bean, String property) {
+	    return PropertyUtils.isReadable(bean, property) && 
+	           PropertyUtils.isWriteable(bean, property); 
 	}
 
 }

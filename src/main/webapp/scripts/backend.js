@@ -12,6 +12,9 @@
 
         function validate() {
             // TODO check for syntax errors in string
+        	
+        	//returning without checking anything, in case of empty exception queue, as adding criteria to query should be a optional thing.
+        	if(this._expressionQueue.length == 0) return true;
 
             var doesStartsWithEP = false;
 
@@ -79,13 +82,30 @@
             }
             return this;
         };
-        this.build = function() {
+        this.build = function(limit, pagenumber) {
+        	
+        	function sanitizeNumber(value) {
+        		if(Number.isInteger(value) && value > 0) {
+        			return value
+        		} else if (Number.isInteger(value) && value < 0) {
+        			console.warn("value should be positive.");
+        			return Math.abs(value);
+        		} else if(typeof value == "string" && !Number.isNaN(parseInt("a"))) {
+        			return parseInt(value);
+        		} else {
+        			
+        			throw new Error("Value type of either argument is not valid, expected numeral string or number type value.");
+        		}
+        	};
+        	
             if(validate.call(this)) {
-                var url = "api/criteria/search/"+this._entityName;
-                var queryURI = "query=" + this._expressionQueue.join("");
+                var url 			= "api/criteria/search/"+this._entityName;
+                var queryURI 		= this._expressionQueue.length > 0 ? "query=" + this._expressionQueue.join("") : "";
+                var paginationURI 	= ( limit ? "&limit=" + sanitizeNumber(limit) : "" ) + ( pagenumber ? "&page=" + sanitizeNumber(pagenumber) : "" );
+                
                 var promise = new Promise(function(resolve, reject) {
                     var request = new XMLHttpRequest();
-                    request.open('GET', url + "?" + queryURI);
+                    request.open('GET', url + "?" + queryURI + paginationURI);
                     request.responseType = 'json';
                     request.onload = function() {
                         if (request.status === 200) {

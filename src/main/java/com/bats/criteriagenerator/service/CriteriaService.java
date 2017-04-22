@@ -5,6 +5,6 @@ import java.util.List;
 public interface CriteriaService
 {
 
-	List<?> search(String entityName, String queryHash, String query);
+	List<?> search(String entityName, String query, int limit, int pagenumber);
 	
 }

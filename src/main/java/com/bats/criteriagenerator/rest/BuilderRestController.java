@@ -19,8 +19,11 @@ public class BuilderRestController
 	private CriteriaService service;
 	
 	@RequestMapping(value = "/search/{entityName}", method = RequestMethod.GET)
-	public List<?> getMetaData(@PathVariable String entityName, @RequestParam(value="query", required=false) String query) {
-		return service.search(entityName, null, query);
+	public List<?> getMetaData( @PathVariable String entityName,
+								@RequestParam(value="query", required=false) String query,
+								@RequestParam(value="limit", required=false, defaultValue="10") int limit,
+								@RequestParam(value="page", required=false, defaultValue="1") int pagenumber) {
+		return service.search(entityName, query, limit, pagenumber);
 	}
 }
 
