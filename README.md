@@ -82,7 +82,14 @@ var eb = new ExpressionBuilder("deptEmp", true);
  - eb.or - add OR Predicate.
  - eb.addExp - add expressions mentioned below.
  - eb.clear - to clear all criteria's.
- - eb.build - return promise object.
+ - eb.build(limit, page) - build function returns the promise object, will eventaully call the API to fetch data.
+
+##### Pagination Support:
+```sh
+eb.build(limit, page); // limit indicates max result, and Page is page number, 
+*Note both the parameters are optional, if undefined API will return all the data.
+``` 
+
 
 Creating Expressions:
 ```sh
